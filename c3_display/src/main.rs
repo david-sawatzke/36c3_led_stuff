@@ -12,12 +12,13 @@ use crate::hal::gpio::{gpioa::*, gpiob::*};
 use crate::hal::prelude::*;
 use crate::hal::time::Hertz;
 
+use embedded_graphics::prelude::*;
 use embedded_hal::digital::v2::OutputPin;
 
 #[rtfm::app(device = stm32f1xx_hal::stm32, peripherals = true)]
 const APP: () = {
     struct Resources {
-        display_pins: (
+        display: hub75::Hub75<(
             PB3<Output<PushPull>>,
             PB4<Output<PushPull>>,
             PB5<Output<PushPull>>,
@@ -31,8 +32,8 @@ const APP: () = {
             PB15<Output<PushPull>>,
             PB14<Output<PushPull>>,
             PB13<Output<PushPull>>,
-        ),
-        delay: hal::delay::Delay,
+        )>,
+        delay: Delay,
     }
 
     #[init]
@@ -49,136 +50,81 @@ const APP: () = {
             .freeze(&mut flash.acr);
 
         let delay = Delay::new(context.core.SYST, clocks);
+        // pwm setup
         let mut gpioa = p.GPIOA.split(&mut rcc.apb2);
         let mut gpiob = p.GPIOB.split(&mut rcc.apb2);
         let (pa15, pb3, pb4) = afio.mapr.disable_jtag(gpioa.pa15, gpiob.pb3, gpiob.pb4);
 
-        let display_pins = (
-            pb3.into_push_pull_output_with_state(&mut gpiob.crl, State::Low),
-            pb4.into_push_pull_output_with_state(&mut gpiob.crl, State::Low),
-            gpiob
-                .pb5
-                .into_push_pull_output_with_state(&mut gpiob.crl, State::Low),
-            gpiob
-                .pb6
-                .into_push_pull_output_with_state(&mut gpiob.crl, State::Low),
-            gpiob
-                .pb7
-                .into_push_pull_output_with_state(&mut gpiob.crl, State::Low),
-            gpiob
-                .pb8
-                .into_push_pull_output_with_state(&mut gpiob.crh, State::Low),
-            pa15.into_push_pull_output_with_state(&mut gpioa.crh, State::Low),
-            gpioa
-                .pa10
-                .into_push_pull_output_with_state(&mut gpioa.crh, State::Low),
-            gpioa
-                .pa9
-                .into_push_pull_output_with_state(&mut gpioa.crh, State::Low),
-            gpioa
-                .pa8
-                .into_push_pull_output_with_state(&mut gpioa.crh, State::Low),
-            gpiob
-                .pb15
-                .into_push_pull_output_with_state(&mut gpiob.crh, State::Low),
-            gpiob
-                .pb14
-                .into_push_pull_output_with_state(&mut gpiob.crh, State::Low),
-            gpiob
-                .pb13
-                .into_push_pull_output_with_state(&mut gpiob.crh, State::Low),
+        let (r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe) = (
+            pb3.into_push_pull_output(&mut gpiob.crl),
+            pb4.into_push_pull_output(&mut gpiob.crl),
+            gpiob.pb5.into_push_pull_output(&mut gpiob.crl),
+            gpiob.pb6.into_push_pull_output(&mut gpiob.crl),
+            gpiob.pb7.into_push_pull_output(&mut gpiob.crl),
+            gpiob.pb8.into_push_pull_output(&mut gpiob.crh),
+            pa15.into_push_pull_output(&mut gpioa.crh),
+            gpioa.pa10.into_push_pull_output(&mut gpioa.crh),
+            gpioa.pa9.into_push_pull_output(&mut gpioa.crh),
+            gpioa.pa8.into_push_pull_output(&mut gpioa.crh),
+            gpiob.pb15.into_push_pull_output(&mut gpiob.crh),
+            gpiob.pb14.into_push_pull_output(&mut gpiob.crh),
+            gpiob.pb13.into_push_pull_output(&mut gpiob.crh),
         );
 
-        init::LateResources {
-            delay,
-            display_pins,
-        }
+        let display = hub75::Hub75::new((r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe), 3);
+        init::LateResources { delay, display }
     }
 
-    #[idle(resources = [delay, display_pins])]
+    #[idle(resources = [delay, display])]
     fn idle(c: idle::Context) -> ! {
-        //let (r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe) = c.resources.display_pins;
+        use embedded_graphics::fonts::{Font12x16, Font6x8};
+        use embedded_graphics::image::ImageBmp;
+        use embedded_graphics::pixelcolor::Rgb565;
+        use embedded_graphics::primitives::{Circle, Rectangle};
+        use embedded_graphics::{egrectangle, icoord};
+        use numtoa::NumToA;
+
+        // let mut buffer = [0u8; 10];
+        // c.resources.display.draw(
+        //     Font6x8::render_str("Hello")
+        //         .stroke(Some(Rgb565(0x000Fu16)))
+        //         .fill(Some(Rgb565(0x0000u16)))
+        //         .translate(icoord!(i, i)),
+        // );
+        // c.resources.display.draw(
+        //     Font6x8::render_str("World")
+        //         .stroke(Some(Rgb565(0xF00Fu16)))
+        //         .fill(Some(Rgb565(0x0000u16)))
+        //         .translate(icoord!(i, 8 + i)),
+        // );
+        // let mut counter = 0;
+        let image =
+            // ImageBmp::new(include_bytes!("../../../visuals/ewg_small.bmp")).unwrap();
+        // ImageBmp::new(include_bytes!("../../../visuals/36c3_white_small.bmp")).unwrap();
+        ImageBmp::new(include_bytes!("../../../visuals/midnight_font_preset.bmp")).unwrap();
+        // ImageBmp::new(include_bytes!("../../../visuals/ferris-flat-happy-small.bmp")).unwrap();
+        c.resources.display.draw(&image);
+        //c.resources.display.draw(image.into_iter());
+
+        // let circle = Circle::new(Coord::new(40, 15), 8).fill(Some(Rgb565(0xF000u16)));
+        // c.resources.display.draw(circle);
+        // c.resources.display.draw(
+        //     Font12x16::render_str(
+        //         core::str::from_utf8(counter.numtoa(10, &mut buffer)).unwrap(),
+        //     )
+        //     .stroke(Some(Rgb565(0x18)))
+        //     .fill(Some(Rgb565(0))),
+        // );
+        // c.resources.display.draw(
+        //     Font6x8::render_str("iterations")
+        //         .stroke(Some(Rgb565(0xFFFFu16)))
+        //         .translate(icoord!(0, 16)),
+        // );
+        // counter += 1;
         loop {
-            for row in 0..16 {
-                shift(
-                    c.resources.display_pins,
-                    c.resources.delay,
-                    row | (1 << (row * 3 + 4)),
-                    row,
-                );
-            }
+            c.resources.display.output(c.resources.delay);
+            // c.resources.delay.delay_us(1000 * i as u32);
+            // c.resources.display.clear();
         }
     }
 };
-
-fn shift<
-    R1: OutputPin,
-    G1: OutputPin,
-    B1: OutputPin,
-    R2: OutputPin,
-    G2: OutputPin,
-    B2: OutputPin,
-    A: OutputPin,
-    B: OutputPin,
-    C: OutputPin,
-    D: OutputPin,
-    CLK: OutputPin,
-    LAT: OutputPin,
-    OE: OutputPin,
-    DELAY: embedded_hal::blocking::delay::DelayUs<u16>,
->(
-    pins: &mut (R1, G1, B1, R2, G2, B2, A, B, C, D, CLK, LAT, OE),
-    delay: &mut DELAY,
-    data: u64,
-    row: u64,
-) {
-    let (r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe) = pins;
-    for i in 0..64 {
-        if ((1 << i) & data) != 0 {
-            r1.set_high().ok();
-            g1.set_high().ok();
-            g2.set_high().ok();
-        } else {
-            r1.set_low().ok();
-            g1.set_low().ok();
-            g2.set_low().ok();
-        }
-        if i == 62 {
-            r1.set_high().ok();
-            g1.set_high().ok();
-            b1.set_high().ok();
-            b2.set_high().ok();
-        } else {
-            b1.set_low().ok();
-            b2.set_low().ok();
-        }
-        clk.set_high().ok();
-        clk.set_low().ok();
-    }
-    oe.set_high().ok();
-    delay.delay_us(20);
-    lat.set_low().ok();
-    lat.set_high().ok();
-    if row & 1 != 0 {
-        a.set_high().ok();
-    } else {
-        a.set_low().ok();
-    }
-    if row & 2 != 0 {
-        b.set_high().ok();
-    } else {
-        b.set_low().ok();
-    }
-    if row & 4 != 0 {
-        c.set_high().ok();
-    } else {
-        c.set_low().ok();
-    }
-    if row & 8 != 0 {
-        d.set_high().ok();
-    } else {
-        d.set_low().ok();
-    }
-    delay.delay_us(20);
-    oe.set_low().ok();
-}
