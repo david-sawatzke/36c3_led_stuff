@@ -115,13 +115,8 @@ impl Elements {
     }
 
     fn step(&mut self) {
-        let mut i = 0;
         for x in self.queue.iter_mut() {
             x.position += 1;
-            i += 1;
-            if i > 100 {
-                panic!("FUU");
-            }
         }
         self.cull();
     }
