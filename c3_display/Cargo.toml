@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 # stm32f1xx-hal = {version = "0.5.0", features = ["rt", "stm32f103", "medium"]}
-stm32f1xx-hal = {version = "0.5.0", features = ["rt", "stm32f103", "medium"]}
+stm32g0xx-hal = {git = "https://github.com/stm32-rs/stm32g0xx-hal", rev = "b65be5b", features = ["rt", "stm32g07x"]}
 panic-halt = "0.2.0"
 cortex-m = "0.6.1"
 embedded-hal = "0.2.3"

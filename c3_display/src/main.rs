@@ -4,89 +4,72 @@
 #[allow(unused)]
 use panic_halt;
 
-use stm32f1xx_hal as hal;
+use stm32g0xx_hal as hal;
 
-use crate::hal::delay::Delay;
-use crate::hal::gpio::*;
-use crate::hal::gpio::{gpioa::*, gpiob::*};
-use crate::hal::prelude::*;
-use crate::hal::time::Hertz;
-use crate::hal::timer::Timer;
+use hal::delay::Delay;
+use hal::gpio::*;
+use hal::gpio::{gpioa::*, gpiob::*};
+use hal::prelude::*;
+use hal::rcc::{self, PllConfig};
+use hal::time::Hertz;
 
+use cortex_m::peripheral::SYST;
 use embedded_graphics::prelude::*;
 use embedded_hal::digital::v2::OutputPin;
 
-#[rtfm::app(device = stm32f1xx_hal::stm32, peripherals = true)]
+#[rtfm::app(device = stm32g0xx_hal::stm32, peripherals = true)]
 const APP: () = {
     struct Resources {
         display: hub75::Hub75<(
+            PB0<Output<PushPull>>,
+            PB1<Output<PushPull>>,
+            PB2<Output<PushPull>>,
             PB3<Output<PushPull>>,
             PB4<Output<PushPull>>,
             PB5<Output<PushPull>>,
+            PA0<Output<PushPull>>,
+            PA1<Output<PushPull>>,
+            PA4<Output<PushPull>>,
+            PB11<Output<PushPull>>,
             PB6<Output<PushPull>>,
-            PB7<Output<PushPull>>,
-            PB8<Output<PushPull>>,
-            PA15<Output<PushPull>>,
+            PB12<Output<PushPull>>,
             PA10<Output<PushPull>>,
-            PA9<Output<PushPull>>,
-            PA8<Output<PushPull>>,
-            PB15<Output<PushPull>>,
-            PB14<Output<PushPull>>,
-            PwmOutputPin,
         )>,
-        delay: Delay,
+        delay: Delay<SYST>,
     }
 
     #[init]
     fn init(context: init::Context) -> init::LateResources {
         let p = context.device;
-        let mut flash = p.FLASH.constrain();
-        let mut rcc = p.RCC.constrain();
-        let mut afio = p.AFIO.constrain(&mut rcc.apb2);
-        let _nvic = context.core.NVIC;
-        let clocks = rcc
-            .cfgr
-            .sysclk(Hertz(64_000_000))
-            .pclk1(Hertz(32_000_000))
-            .freeze(&mut flash.acr);
+        let pll_cfg = PllConfig::with_hsi(4, 48, 2);
+        let rcc_cfg = rcc::Config::pll().pll_cfg(pll_cfg);
+        let mut rcc = p.RCC.freeze(rcc_cfg);
 
-        let delay = Delay::new(context.core.SYST, clocks);
-        // pwm setup
-        let mut gpioa = p.GPIOA.split(&mut rcc.apb2);
-        let mut gpiob = p.GPIOB.split(&mut rcc.apb2);
-        let (pa15, pb3, pb4) = afio.mapr.disable_jtag(gpioa.pa15, gpiob.pb3, gpiob.pb4);
+        let delay: Delay<SYST> = Delay::syst(context.core.SYST, &rcc);
 
-        let (r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, _oe, mut c4) = (
-            pb3.into_push_pull_output(&mut gpiob.crl),
-            pb4.into_push_pull_output(&mut gpiob.crl),
-            gpiob.pb5.into_push_pull_output(&mut gpiob.crl),
-            gpiob.pb6.into_push_pull_output(&mut gpiob.crl),
-            gpiob.pb7.into_push_pull_output(&mut gpiob.crl),
-            gpiob.pb8.into_push_pull_output(&mut gpiob.crh),
-            pa15.into_push_pull_output(&mut gpioa.crh),
-            gpioa.pa10.into_push_pull_output(&mut gpioa.crh),
-            gpioa.pa9.into_push_pull_output(&mut gpioa.crh),
-            gpioa.pa8.into_push_pull_output(&mut gpioa.crh),
-            gpiob.pb15.into_push_pull_output(&mut gpiob.crh),
-            gpiob.pb14.into_push_pull_output(&mut gpiob.crh),
-            gpiob.pb13.into_push_pull_output(&mut gpiob.crh),
-            gpiob.pb9.into_push_pull_output(&mut gpiob.crh),
+        let gpioa = p.GPIOA.split(&mut rcc);
+        let gpiob = p.GPIOB.split(&mut rcc);
+
+        use hal::gpio::Speed::VeryHigh;
+        let (r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe) = (
+            gpiob.pb0.into_push_pull_output().set_speed(VeryHigh),
+            gpiob.pb1.into_push_pull_output().set_speed(VeryHigh),
+            gpiob.pb2.into_push_pull_output().set_speed(VeryHigh),
+            gpiob.pb3.into_push_pull_output().set_speed(VeryHigh),
+            gpiob.pb4.into_push_pull_output().set_speed(VeryHigh),
+            gpiob.pb5.into_push_pull_output().set_speed(VeryHigh),
+            // Now the multiplexing
+            gpioa.pa0.into_push_pull_output().set_speed(VeryHigh),
+            gpioa.pa1.into_push_pull_output().set_speed(VeryHigh),
+            gpioa.pa4.into_push_pull_output().set_speed(VeryHigh),
+            gpiob.pb11.into_push_pull_output().set_speed(VeryHigh),
+            // Shift register control
+            // CLK
+            gpiob.pb6.into_push_pull_output().set_speed(VeryHigh),
+            gpiob.pb12.into_push_pull_output().set_speed(VeryHigh),
+            gpioa.pa10.into_push_pull_output().set_speed(VeryHigh),
         );
-        c4.set_high().ok();
-        let c4 = c4.into_alternate_push_pull(&mut gpiob.crh);
-
-        let pwm_pins = c4;
-        let mut pwm = Timer::tim4(p.TIM4, &clocks, &mut rcc.apb1).pwm(
-            pwm_pins,
-            &mut afio.mapr,
-            Hertz(600_000),
-        );
-        // unsafe { (*hal::stm32::TIM4::ptr()).psc.write(|w| w.psc().bits(1)) };
-        pwm.enable();
-        // assert_eq!(pwm.get_max_duty(), 128);
-        let mut oe_pwm = PwmOutputPin::new(pwm);
-        oe_pwm.set_value(127);
-        let display = hub75::Hub75::new((r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe_pwm), 3);
+        let display = hub75::Hub75::new((r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe), 3);
         init::LateResources { delay, display }
     }
 
@@ -113,11 +96,10 @@ const APP: () = {
         //         .translate(icoord!(i, 8 + i)),
         // );
         // let mut counter = 0;
-        let image =
-            // ImageBmp::new(include_bytes!("../../../visuals/ewg_small.bmp")).unwrap();
+        let image = //ImageBmp::new(include_bytes!("../../../visuals/ewg_small.bmp")).unwrap();
         // ImageBmp::new(include_bytes!("../../../visuals/36c3_white_small.bmp")).unwrap();
-        ImageBmp::new(include_bytes!("../../../visuals/midnight_font_preset.bmp")).unwrap();
-        // ImageBmp::new(include_bytes!("../../../visuals/ferris-flat-happy-small.bmp")).unwrap();
+        // ImageBmp::new(include_bytes!("../../../visuals/midnight_font_preset.bmp")).unwrap();
+        ImageBmp::new(include_bytes!("../../../visuals/ferris-flat-happy-small.bmp")).unwrap();
         //c.resources.display.draw(image.into_iter());
 
         // let circle = Circle::new(Coord::new(40, 15), 8).fill(Some(Rgb565(0xF000u16)));
@@ -143,29 +125,3 @@ const APP: () = {
         }
     }
 };
-pub struct PwmOutputPin {
-    pin: hal::pwm::Pwm<hal::stm32::TIM4, hal::pwm::C4>,
-}
-
-impl PwmOutputPin {
-    fn new(pin: hal::pwm::Pwm<hal::stm32::TIM4, hal::pwm::C4>) -> Self {
-        Self { pin }
-    }
-
-    fn set_value(&mut self, value: u8) {
-        self.pin.set_duty((127 - value) as u16);
-    }
-}
-impl OutputPin for PwmOutputPin {
-    type Error = ();
-    fn set_high(&mut self) -> Result<(), ()> {
-        use hal::stm32::GPIOB;
-        unsafe { (*GPIOB::ptr()).crh.modify(|_, w| w.cnf9().push_pull()) };
-        Ok(())
-    }
-    fn set_low(&mut self) -> Result<(), ()> {
-        use hal::stm32::GPIOB;
-        unsafe { (*GPIOB::ptr()).crh.modify(|_, w| w.cnf9().alt_push_pull()) };
-        Ok(())
-    }
-}
