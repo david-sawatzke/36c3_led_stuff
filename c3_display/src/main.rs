@@ -1,8 +1,7 @@
 #![no_main]
 #![no_std]
 
-#[allow(unused)]
-use panic_halt;
+use panic_semihosting as _;
 
 use stm32g0xx_hal as hal;
 
@@ -11,16 +10,20 @@ use hal::gpio::*;
 use hal::gpio::{gpioa::*, gpiob::*};
 use hal::prelude::*;
 use hal::rcc::{self, PllConfig};
-use hal::time::Hertz;
 
+use c3_display::hub75dma::Hub75Dma;
 use cortex_m::peripheral::SYST;
+use cortex_m_semihosting::dbg;
 use embedded_graphics::prelude::*;
 use embedded_hal::digital::v2::OutputPin;
 
+// We use a global variable to ensure it's only allowated once, since ram
+// is quite tight
+static mut BUFFER: [[[u8; 128]; 8]; 16] = [[[0; 128]; 8]; 16];
 #[rtfm::app(device = stm32g0xx_hal::stm32, peripherals = true)]
 const APP: () = {
     struct Resources {
-        display: hub75::Hub75<(
+        display: Hub75Dma<(
             PB0<Output<PushPull>>,
             PB1<Output<PushPull>>,
             PB2<Output<PushPull>>,
@@ -66,10 +69,23 @@ const APP: () = {
             // Shift register control
             // CLK
             gpiob.pb6.into_push_pull_output().set_speed(VeryHigh),
+            // latch
             gpiob.pb12.into_push_pull_output().set_speed(VeryHigh),
+            // oe
             gpioa.pa10.into_push_pull_output().set_speed(VeryHigh),
         );
-        let display = hub75::Hub75::new((r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe), 3);
+        // Get pointer
+        let mut pointer =
+            unsafe { core::mem::transmute(&((*hal::stm32::GPIOB::ptr()).odr) as *const _) };
+        assert_eq!(pointer as usize, 0x5000_0414);
+        pointer = 0x5000_0414 as *mut u8;
+        let display = unsafe {
+            Hub75Dma::new(
+                (r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe),
+                pointer,
+                &mut BUFFER as *mut _,
+            )
+        };
         init::LateResources { delay, display }
     }
 
@@ -96,11 +112,17 @@ const APP: () = {
         //         .translate(icoord!(i, 8 + i)),
         // );
         // let mut counter = 0;
-        let image = //ImageBmp::new(include_bytes!("../../../visuals/ewg_small.bmp")).unwrap();
-        // ImageBmp::new(include_bytes!("../../../visuals/36c3_white_small.bmp")).unwrap();
-        // ImageBmp::new(include_bytes!("../../../visuals/midnight_font_preset.bmp")).unwrap();
-        ImageBmp::new(include_bytes!("../../../visuals/ferris-flat-happy-small.bmp")).unwrap();
-        //c.resources.display.draw(image.into_iter());
+        let image = {
+            ImageBmp::new(include_bytes!("../../../visuals/ewg_small.bmp")).unwrap()
+            // ImageBmp::new(include_bytes!("../../../visuals/36c3_white_small.bmp")).unwrap();
+            // ImageBmp::new(include_bytes!("../../../visuals/midnight_font_preset.bmp")).unwrap()
+            // ImageBmp::new(include_bytes!("../../../visuals/ferris-flat-happy-small.bmp")).unwrap();
+        };
+        // let imagetmp = ImageBmp::new(include_bytes!(
+        //     "../../../visuals/ferris-flat-happy-small.bmp"
+        // ))
+        // .unwrap();
+        // c.resources.display.draw(image.into_iter());
 
         // let circle = Circle::new(Coord::new(40, 15), 8).fill(Some(Rgb565(0xF000u16)));
         // c.resources.display.draw(circle);
@@ -117,7 +139,9 @@ const APP: () = {
         //         .translate(icoord!(0, 16)),
         // );
         // counter += 1;
-        c.resources.display.draw(&image);
+        // c.resources.display.draw(&imagetmp);
+        c.resources.display.draw(&image.translate(icoord!(16, 0)));
+        // c.resources.display.clear();
         loop {
             c.resources.display.output(c.resources.delay);
             c.resources.delay.delay_us(1000 as u32);
