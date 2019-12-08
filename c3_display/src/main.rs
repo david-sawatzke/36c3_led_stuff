@@ -23,21 +23,14 @@ static mut BUFFER: [[[u8; 128]; 8]; 16] = [[[0; 128]; 8]; 16];
 #[rtfm::app(device = stm32g0xx_hal::stm32, peripherals = true)]
 const APP: () = {
     struct Resources {
-        display: Hub75Dma<(
-            PB0<Output<PushPull>>,
-            PB1<Output<PushPull>>,
-            PB2<Output<PushPull>>,
-            PB3<Output<PushPull>>,
-            PB4<Output<PushPull>>,
-            PB5<Output<PushPull>>,
+        display: Hub75Dma<
             PA0<Output<PushPull>>,
             PA1<Output<PushPull>>,
             PA4<Output<PushPull>>,
             PB11<Output<PushPull>>,
-            PB6<Output<PushPull>>,
             PB12<Output<PushPull>>,
             PA10<Output<PushPull>>,
-        )>,
+        >,
         delay: Delay<SYST>,
     }
 

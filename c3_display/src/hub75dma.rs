@@ -1,20 +1,52 @@
 use cortex_m_semihosting::dbg;
 use embedded_hal::blocking::delay::DelayUs;
 use embedded_hal::digital::v2::OutputPin;
-use hub75::Outputs;
-pub struct Hub75Dma<PINS> {
-    pins: PINS,
+use stm32g0xx_hal as hal;
+pub struct Hub75Dma<A, B, C, D, LATCH, OE> {
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    latch: LATCH,
+    oe: OE,
     output_port: *mut u8,
     //                     bits
     data: *mut [[[u8; 128]; 8]; 16],
 }
 
-impl<PINS: Outputs> Hub75Dma<PINS> {
+use hal::gpio::gpiob::*;
+use hal::gpio::{Output, PushPull};
+impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin, OE: OutputPin>
+    Hub75Dma<A, B, C, D, LATCH, OE>
+{
     // In the pointer: from bit 0 to 6: R1, G1, B1, R2, G2, B2, clk
     // The 7th bit is undefined
-    pub unsafe fn new(pins: PINS, output_port: *mut u8, data: *mut [[[u8; 128]; 8]; 16]) -> Self {
+    pub unsafe fn new(
+        pins: (
+            PB0<Output<PushPull>>,
+            PB1<Output<PushPull>>,
+            PB2<Output<PushPull>>,
+            PB3<Output<PushPull>>,
+            PB4<Output<PushPull>>,
+            PB5<Output<PushPull>>,
+            A,
+            B,
+            C,
+            D,
+            PB6<Output<PushPull>>,
+            LATCH,
+            OE,
+        ),
+        output_port: *mut u8,
+        data: *mut [[[u8; 128]; 8]; 16],
+    ) -> Self {
         let mut tmp = Self {
-            pins,
+            a: pins.6,
+            b: pins.7,
+            c: pins.8,
+            d: pins.9,
+            latch: pins.11,
+            oe: pins.12,
             output_port,
             data,
         };
@@ -28,42 +60,40 @@ impl<PINS: Outputs> Hub75Dma<PINS> {
         for (row, row_data) in unsafe { *self.data }.iter().enumerate() {
             // Select row
             if row & 1 != 0 {
-                self.pins.a().set_high().ok();
+                self.a.set_high().ok();
             } else {
-                self.pins.a().set_low().ok();
+                self.a.set_low().ok();
             }
             if row & 2 != 0 {
-                self.pins.b().set_high().ok();
+                self.b.set_high().ok();
             } else {
-                self.pins.b().set_low().ok();
+                self.b.set_low().ok();
             }
             if row & 4 != 0 {
-                self.pins.c().set_high().ok();
+                self.c.set_high().ok();
             } else {
-                self.pins.c().set_low().ok();
+                self.c.set_low().ok();
             }
             if row & 8 != 0 {
-                self.pins.d().set_high().ok();
+                self.d.set_high().ok();
             } else {
-                self.pins.d().set_low().ok();
+                self.d.set_low().ok();
             }
             // bit
-            for (bit, bit_data) in row_data.iter().skip(2).enumerate() {
+            for (bit, bit_data) in row_data.iter().enumerate() {
                 // Shift the data out
                 for port_data in bit_data.iter() {
                     unsafe { *self.output_port = *port_data };
                 }
-                // latch
-                self.pins.lat().set_high().ok();
-                self.pins.lat().set_low().ok();
-                self.pins.oe().set_low().ok();
+                // latch the data
+                self.latch.set_high().ok();
+                self.latch.set_low().ok();
+                self.oe.set_low().ok();
                 for _ in 0..(1 << bit) {
                     delay.delay_us(1);
                 }
-                self.pins.oe().set_high().ok();
+                self.oe.set_high().ok();
             }
-            // Prevent ghosting
-            delay.delay_us(100);
         }
     }
     pub fn clear(&mut self) {
@@ -86,7 +116,9 @@ use embedded_graphics::{
     pixelcolor::Rgb565,
     Drawing, SizedDrawing,
 };
-impl<PINS: Outputs> Drawing<Rgb565> for Hub75Dma<PINS> {
+impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin, OE: OutputPin>
+    Drawing<Rgb565> for Hub75Dma<A, B, C, D, LATCH, OE>
+{
     fn draw<T>(&mut self, item_pixels: T)
     where
         T: IntoIterator<Item = Pixel<Rgb565>>,
