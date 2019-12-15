@@ -139,13 +139,10 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
     }
 }
 
-use embedded_graphics::{
-    drawable::{Dimensions, Pixel},
-    pixelcolor::Rgb565,
-    Drawing, SizedDrawing,
-};
-impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin, OE: OutputPin>
-    Drawing<Rgb565> for Hub75Dma<A, B, C, D, LATCH, OE>
+use embedded_graphics::{drawable::Pixel, pixelcolor::Rgb565, Drawing};
+
+impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin> Drawing<Rgb565>
+    for Hub75Dma<A, B, C, D, LATCH>
 {
     fn draw<T>(&mut self, item_pixels: T)
     where
