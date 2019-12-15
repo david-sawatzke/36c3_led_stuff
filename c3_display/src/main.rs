@@ -15,7 +15,6 @@ use c3_display::hub75dma::Hub75Dma;
 use cortex_m::peripheral::SYST;
 use cortex_m_semihosting::dbg;
 use embedded_graphics::prelude::*;
-use embedded_hal::digital::v2::OutputPin;
 
 // We use a global variable to ensure it's only allowated once, since ram
 // is quite tight
@@ -29,7 +28,6 @@ const APP: () = {
             PA4<Output<PushPull>>,
             PB11<Output<PushPull>>,
             PB12<Output<PushPull>>,
-            PA10<Output<PushPull>>,
         >,
         delay: Delay<SYST>,
     }
@@ -64,19 +62,22 @@ const APP: () = {
             gpiob.pb6.into_push_pull_output().set_speed(VeryHigh),
             // latch
             gpiob.pb12.into_push_pull_output().set_speed(VeryHigh),
-            // oe
-            gpioa.pa10.into_push_pull_output().set_speed(VeryHigh),
+            // oe (TODO kinda hacky)
+            gpioa
+                .pa10
+                .into_push_pull_output()
+                .set_speed(VeryHigh)
+                .into_floating_input(),
         );
-        // Get pointer
-        let mut pointer =
-            unsafe { core::mem::transmute(&((*hal::stm32::GPIOB::ptr()).odr) as *const _) };
-        assert_eq!(pointer as usize, 0x5000_0414);
-        pointer = 0x5000_0414 as *mut u8;
+        // Get pulse output
+        let pwm = p.TIM1.pwm(10.khz(), &mut rcc);
+        let oe_pulse = pwm.bind_pin(oe);
+
         let display = unsafe {
             Hub75Dma::new(
-                (r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe),
-                pointer,
+                (r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat),
                 &mut BUFFER as *mut _,
+                oe_pulse,
             )
         };
         init::LateResources { delay, display }

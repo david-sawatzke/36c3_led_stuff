@@ -1,23 +1,23 @@
 use cortex_m_semihosting::dbg;
-use embedded_hal::blocking::delay::DelayUs;
 use embedded_hal::digital::v2::OutputPin;
 use stm32g0xx_hal as hal;
-pub struct Hub75Dma<A, B, C, D, LATCH, OE> {
-    a: A,
-    b: B,
-    c: C,
-    d: D,
+
+use hal::gpio::gpiob::*;
+use hal::gpio::{Output, PushPull};
+use hal::prelude::*;
+use hal::stm32::TIM1;
+
+pub struct Hub75Dma<A, B, C, D, LATCH> {
+    row_pins: (A, B, C, D),
     latch: LATCH,
-    oe: OE,
+    _oe_pulse: hal::timer::pwm::PwmPin<TIM1, hal::timer::Channel3>,
     output_port: *mut u8,
     //                     bits
     data: *mut [[[u8; 128]; 8]; 16],
 }
 
-use hal::gpio::gpiob::*;
-use hal::gpio::{Output, PushPull};
-impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin, OE: OutputPin>
-    Hub75Dma<A, B, C, D, LATCH, OE>
+impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
+    Hub75Dma<A, B, C, D, LATCH>
 {
     // In the pointer: from bit 0 to 6: R1, G1, B1, R2, G2, B2, clk
     // The 7th bit is undefined
@@ -35,67 +35,95 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin, O
             D,
             PB6<Output<PushPull>>,
             LATCH,
-            OE,
         ),
-        output_port: *mut u8,
         data: *mut [[[u8; 128]; 8]; 16],
+        mut oe_pulse: hal::timer::pwm::PwmPin<TIM1, hal::timer::Channel3>,
     ) -> Self {
+        // Get pointer
+        let output_port = core::mem::transmute(&((*hal::stm32::GPIOB::ptr()).odr) as *const _);
+        assert_eq!(output_port as usize, 0x5000_0414);
+        oe_pulse.enable();
+        // Lets hack the timer so that it does what we want
+        let tim1: &mut hal::stm32::tim1::RegisterBlock = &mut *(TIM1::ptr() as *mut _);
+        // Stop the timer & set opm mode
+        tim1.cr1.write(|w| w.opm().set_bit());
+        tim1.cr2.write(|w| w);
+        // Normal pwm mode
+        tim1.ccmr2_output_mut().write(|w| w.oc3m().bits(6));
+        // Set the prescaler so that the timer is done when a row is shifted out
+        tim1.psc.write(|w| w.psc().bits(2));
+        // Need this so ARR is reached in the first iteration
+        tim1.cnt.write(|w| w.cnt().bits(0));
+        // We set this to one, so the pin is high while the timer is stopped
+        // (at zero)
+        tim1.ccr3.write(|w| w.ccr3().bits(1));
+
         let mut tmp = Self {
-            a: pins.6,
-            b: pins.7,
-            c: pins.8,
-            d: pins.9,
+            row_pins: (pins.6, pins.7, pins.8, pins.9),
             latch: pins.11,
-            oe: pins.12,
             output_port,
             data,
+            _oe_pulse: oe_pulse,
         };
-        // To get a clear image
+        // To generate a clear image
         tmp.clear();
         tmp
     }
 
-    pub fn output<DELAY: DelayUs<u16>>(&mut self, delay: &mut DELAY) {
+    pub fn output(&mut self) {
         // Row
-        for (row, row_data) in unsafe { *self.data }.iter().enumerate() {
-            // Select row
-            if row & 1 != 0 {
-                self.a.set_high().ok();
-            } else {
-                self.a.set_low().ok();
-            }
-            if row & 2 != 0 {
-                self.b.set_high().ok();
-            } else {
-                self.b.set_low().ok();
-            }
-            if row & 4 != 0 {
-                self.c.set_high().ok();
-            } else {
-                self.c.set_low().ok();
-            }
-            if row & 8 != 0 {
-                self.d.set_high().ok();
-            } else {
-                self.d.set_low().ok();
-            }
+        for (row, row_data) in unsafe { &mut *self.data }.iter().enumerate() {
             // bit
             for (bit, bit_data) in row_data.iter().enumerate() {
                 // Shift the data out
                 for port_data in bit_data.iter() {
                     unsafe { *self.output_port = *port_data };
                 }
-                // latch the data
+                let tim1: &mut hal::stm32::tim1::RegisterBlock =
+                    unsafe { &mut *(TIM1::ptr() as *mut _) };
+                // Check that the timer isn't still running
+                assert!(tim1.cr1.read().cen().bit() == false);
+                // Select the row
+                // Doing it now, since oe is guaranteed to be disabled now
+                if bit == 0 {
+                    Self::select_row(row as u8, &mut self.row_pins);
+                }
+                // Latch the data
                 self.latch.set_high().ok();
                 self.latch.set_low().ok();
-                self.oe.set_low().ok();
-                for _ in 0..(1 << bit) {
-                    delay.delay_us(1);
-                }
-                self.oe.set_high().ok();
+                // Generate pulse
+                let reload: u16 = 1 << (bit as u16) + 1;
+                // Pin is low between CCR3 & ARR
+                unsafe { tim1.arr.write(|w| w.arr().bits(reload)) };
+                tim1.cr1.modify(|_, w| w.opm().set_bit().cen().set_bit());
             }
         }
     }
+
+    fn select_row(row: u8, row_pins: &mut (A, B, C, D)) {
+        // Select row
+        if row & 1 != 0 {
+            row_pins.0.set_high().ok();
+        } else {
+            row_pins.0.set_low().ok();
+        }
+        if row & 2 != 0 {
+            row_pins.1.set_high().ok();
+        } else {
+            row_pins.1.set_low().ok();
+        }
+        if row & 4 != 0 {
+            row_pins.2.set_high().ok();
+        } else {
+            row_pins.2.set_low().ok();
+        }
+        if row & 8 != 0 {
+            row_pins.3.set_high().ok();
+        } else {
+            row_pins.3.set_low().ok();
+        }
+    }
+
     pub fn clear(&mut self) {
         for row in unsafe { &mut *self.data }.iter_mut() {
             for bit in row.iter_mut() {
