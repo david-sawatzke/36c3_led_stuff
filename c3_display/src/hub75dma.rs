@@ -139,14 +139,15 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
     }
 }
 
-use embedded_graphics::{drawable::Pixel, pixelcolor::Rgb565, Drawing};
+use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::{drawable::Pixel, pixelcolor::Rgb888, Drawing};
 
-impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin> Drawing<Rgb565>
+impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin> Drawing<Rgb888>
     for Hub75Dma<A, B, C, D, LATCH>
 {
     fn draw<T>(&mut self, item_pixels: T)
     where
-        T: IntoIterator<Item = Pixel<Rgb565>>,
+        T: IntoIterator<Item = Pixel<Rgb888>>,
     {
         // This table remaps linear input values
         // (the numbers we’d like to use; e.g. 127 = half brightness)

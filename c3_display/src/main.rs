@@ -87,10 +87,9 @@ const APP: () = {
     #[allow(unused_imports)]
     fn idle(c: idle::Context) -> ! {
         use embedded_graphics::fonts::{Font12x16, Font6x8};
-        use embedded_graphics::image::ImageBmp;
+        use embedded_graphics::image::ImageTga;
         use embedded_graphics::pixelcolor::Rgb565;
         use embedded_graphics::primitives::{Circle, Rectangle};
-        use embedded_graphics::{egrectangle, icoord};
 
         // let mut buffer = [0u8; 10];
         // c.resources.display.draw(
@@ -107,10 +106,10 @@ const APP: () = {
         // );
         // let mut counter = 0;
         let image = {
-            ImageBmp::new(include_bytes!("../../../visuals/ewg_small.bmp")).unwrap()
-            // ImageBmp::new(include_bytes!("../../../visuals/36c3_white_small.bmp")).unwrap();
-            // ImageBmp::new(include_bytes!("../../../visuals/midnight_font_preset.bmp")).unwrap()
-            // ImageBmp::new(include_bytes!("../../../visuals/ferris-flat-happy-small.bmp")).unwrap();
+            // ImageBmp::new(include_bytes!("../../../visuals/ewg_small.bmp")).unwrap()
+            // ImageBmp::new(include_bytes!("../../../visuals/36c3_white_small.bmp")).unwrap()
+            ImageTga::new(include_bytes!("../../../visuals/midnight_font_preset.tga")).unwrap()
+            // ImageBmp::new(include_bytes!("../../../visuals/ferris-flat-happy-small.bmp")).unwrap()
         };
         // let imagetmp = ImageBmp::new(include_bytes!(
         //     "../../../visuals/ferris-flat-happy-small.bmp"
@@ -134,11 +133,10 @@ const APP: () = {
         // );
         // counter += 1;
         // c.resources.display.draw(&imagetmp);
-        c.resources.display.draw(&image.translate(icoord!(16, 0)));
+        c.resources.display.draw(&image);
         // c.resources.display.clear();
         loop {
-            c.resources.display.output(c.resources.delay);
-            c.resources.delay.delay_us(1000 as u32);
+            c.resources.display.output();
             // c.resources.display.clear();
         }
     }
