@@ -85,7 +85,7 @@ const APP: () = {
 
     #[idle(resources = [delay, display])]
     #[allow(unused_imports)]
-    fn idle(c: idle::Context) -> ! {
+    fn idle(mut c: idle::Context) -> ! {
         use embedded_graphics::fonts::{Font12x16, Font6x8};
         use embedded_graphics::image::ImageTga;
         use embedded_graphics::pixelcolor::Rgb565;
@@ -133,18 +133,23 @@ const APP: () = {
         // );
         // counter += 1;
         // c.resources.display.draw(&imagetmp);
-        c.resources.display.draw(&image);
-        // c.resources.display.clear();
+        c.resources.display.lock(|display| {
+            display.draw(&image);
+            // c.resources.display.clear();
+            display.output();
+        });
+
         loop {
-            c.resources.display.output();
+            continue;
             // c.resources.display.clear();
         }
     }
-    #[task(binds = TIM1_BRK_UP_TRG_COMP, priority = 1)]
-    fn tim1(_: tim1::Context) {
+    #[task(binds = TIM1_BRK_UP_TRG_COMP, priority = 1, resources = [display])]
+    fn tim1(c: tim1::Context) {
         // Clear the interrupt
         let tim1: &hal::stm32::tim1::RegisterBlock = unsafe { &*(hal::stm32::TIM1::ptr()) };
         tim1.sr
             .write(|w| unsafe { w.bits(0xFFFFFFFF).uif().clear_bit() });
+        c.resources.display.output();
     }
 };

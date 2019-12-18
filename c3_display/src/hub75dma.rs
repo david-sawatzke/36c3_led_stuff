@@ -19,6 +19,8 @@ pub struct Hub75Dma<A, B, C, D, LATCH> {
     o_count: u8,
 }
 
+unsafe impl<A, B, C, D, LATCH> Send for Hub75Dma<A, B, C, D, LATCH> {}
+
 impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
     Hub75Dma<A, B, C, D, LATCH>
 {
@@ -99,8 +101,6 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
         // Pin is low between CCR3 & ARR
         tim1.ccr3.write(|w| unsafe { w.ccr3().bits(compare) });
         tim1.cr1.modify(|_, w| w.opm().set_bit().cen().set_bit());
-        // wfi
-        cortex_m::asm::wfi();
     }
 
     fn select_row(row: u8, row_pins: &mut (A, B, C, D)) {
