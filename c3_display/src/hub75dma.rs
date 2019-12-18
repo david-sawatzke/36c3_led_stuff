@@ -7,6 +7,8 @@ use hal::gpio::{Output, PushPull};
 use hal::prelude::*;
 use hal::stm32::TIM1;
 
+// Has to be higher than 128, so all the bits can be represented
+const TIMER_PERIOD: u16 = 300;
 pub struct Hub75Dma<A, B, C, D, LATCH> {
     row_pins: (A, B, C, D),
     latch: LATCH,
@@ -54,9 +56,8 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
         tim1.psc.write(|w| w.psc().bits(2));
         // Need this so ARR is reached in the first iteration
         tim1.cnt.write(|w| w.cnt().bits(0));
-        // We set this to one, so the pin is high while the timer is stopped
-        // (at zero)
-        tim1.ccr3.write(|w| w.ccr3().bits(1));
+        // We adjust the low period via ccr1, since the output is low between ccr & arr
+        tim1.arr.write(|w| w.arr().bits(TIMER_PERIOD));
 
         let mut tmp = Self {
             row_pins: (pins.6, pins.7, pins.8, pins.9),
@@ -92,9 +93,9 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
                 self.latch.set_high().ok();
                 self.latch.set_low().ok();
                 // Generate pulse
-                let reload: u16 = 1 << (bit as u16) + 1;
+                let compare: u16 = TIMER_PERIOD - (1 << (bit as u16));
                 // Pin is low between CCR3 & ARR
-                unsafe { tim1.arr.write(|w| w.arr().bits(reload)) };
+                tim1.ccr3.write(|w| unsafe { w.ccr3().bits(compare) });
                 tim1.cr1.modify(|_, w| w.opm().set_bit().cen().set_bit());
             }
         }
