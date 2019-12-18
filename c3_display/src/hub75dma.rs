@@ -50,6 +50,8 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
         // Stop the timer & set opm mode
         tim1.cr1.write(|w| w.opm().set_bit());
         tim1.cr2.write(|w| w);
+        // Enable update interrupt
+        tim1.dier.write(|w| w.uie().set_bit());
         // Normal pwm mode
         tim1.ccmr2_output_mut().write(|w| w.oc3m().bits(6));
         // Set the prescaler so that the timer is done when a row is shifted out
@@ -97,6 +99,8 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
                 // Pin is low between CCR3 & ARR
                 tim1.ccr3.write(|w| unsafe { w.ccr3().bits(compare) });
                 tim1.cr1.modify(|_, w| w.opm().set_bit().cen().set_bit());
+                // wfi
+                cortex_m::asm::wfi();
             }
         }
     }

@@ -140,4 +140,11 @@ const APP: () = {
             // c.resources.display.clear();
         }
     }
+    #[task(binds = TIM1_BRK_UP_TRG_COMP, priority = 1)]
+    fn tim1(_: tim1::Context) {
+        // Clear the interrupt
+        let tim1: &hal::stm32::tim1::RegisterBlock = unsafe { &*(hal::stm32::TIM1::ptr()) };
+        tim1.sr
+            .write(|w| unsafe { w.bits(0xFFFFFFFF).uif().clear_bit() });
+    }
 };
