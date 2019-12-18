@@ -16,6 +16,7 @@ pub struct Hub75Dma<A, B, C, D, LATCH> {
     output_port: *mut u8,
     //                     bits
     data: *mut [[[u8; 128]; 8]; 16],
+    o_count: u8,
 }
 
 impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
@@ -67,6 +68,7 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
             output_port,
             data,
             _oe_pulse: oe_pulse,
+            o_count: 0,
         };
         // To generate a clear image
         tmp.clear();
@@ -74,35 +76,31 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
     }
 
     pub fn output(&mut self) {
-        // Row
-        for (row, row_data) in unsafe { &mut *self.data }.iter().enumerate() {
-            // bit
-            for (bit, bit_data) in row_data.iter().enumerate() {
-                // Shift the data out
-                for port_data in bit_data.iter() {
-                    unsafe { *self.output_port = *port_data };
-                }
-                let tim1: &mut hal::stm32::tim1::RegisterBlock =
-                    unsafe { &mut *(TIM1::ptr() as *mut _) };
-                // Check that the timer isn't still running
-                assert!(tim1.cr1.read().cen().bit() == false);
-                // Select the row
-                // Doing it now, since oe is guaranteed to be disabled now
-                if bit == 0 {
-                    Self::select_row(row as u8, &mut self.row_pins);
-                }
-                // Latch the data
-                self.latch.set_high().ok();
-                self.latch.set_low().ok();
-                // Generate pulse
-                let compare: u16 = TIMER_PERIOD - (1 << (bit as u16));
-                // Pin is low between CCR3 & ARR
-                tim1.ccr3.write(|w| unsafe { w.ccr3().bits(compare) });
-                tim1.cr1.modify(|_, w| w.opm().set_bit().cen().set_bit());
-                // wfi
-                cortex_m::asm::wfi();
-            }
+        let row = (self.o_count / 8 % 16) as usize;
+        let bit = (self.o_count % 8) as usize;
+        self.o_count = self.o_count.wrapping_add(1);
+        // Shift the data out
+        for port_data in unsafe { (*self.data)[row][bit].iter() } {
+            unsafe { *self.output_port = *port_data };
         }
+        let tim1: &mut hal::stm32::tim1::RegisterBlock = unsafe { &mut *(TIM1::ptr() as *mut _) };
+        // Check that the timer isn't still running
+        assert!(tim1.cr1.read().cen().bit() == false);
+        // Select the row
+        // Doing it now, since oe is guaranteed to be disabled now
+        if bit == 0 {
+            Self::select_row(row as u8, &mut self.row_pins);
+        }
+        // Latch the data
+        self.latch.set_high().ok();
+        self.latch.set_low().ok();
+        // Generate pulse
+        let compare: u16 = TIMER_PERIOD - (1 << (bit as u16));
+        // Pin is low between CCR3 & ARR
+        tim1.ccr3.write(|w| unsafe { w.ccr3().bits(compare) });
+        tim1.cr1.modify(|_, w| w.opm().set_bit().cen().set_bit());
+        // wfi
+        cortex_m::asm::wfi();
     }
 
     fn select_row(row: u8, row_pins: &mut (A, B, C, D)) {
