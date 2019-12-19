@@ -134,7 +134,7 @@ const APP: () = {
         // counter += 1;
         // c.resources.display.draw(&imagetmp);
         c.resources.display.lock(|display| {
-            display.draw(&image);
+            image.draw(display);
             // c.resources.display.clear();
             display.output();
         });

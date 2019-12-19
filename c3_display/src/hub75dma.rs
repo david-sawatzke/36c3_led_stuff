@@ -146,15 +146,12 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
 }
 
 use embedded_graphics::pixelcolor::RgbColor;
-use embedded_graphics::{drawable::Pixel, pixelcolor::Rgb888, Drawing};
+use embedded_graphics::{drawable::Pixel, geometry::Size, pixelcolor::Rgb888, DrawTarget};
 
-impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin> Drawing<Rgb888>
+impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin> DrawTarget<Rgb888>
     for Hub75Dma<A, B, C, D, LATCH>
 {
-    fn draw<T>(&mut self, item_pixels: T)
-    where
-        T: IntoIterator<Item = Pixel<Rgb888>>,
-    {
+    fn draw_pixel(&mut self, pixel: Pixel<Rgb888>) {
         // This table remaps linear input values
         // (the numbers we’d like to use; e.g. 127 = half brightness)
         // to nonlinear gamma-corrected output values
@@ -174,32 +171,35 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin> D
             182, 184, 186, 189, 191, 193, 196, 198, 200, 203, 205, 208, 210, 213, 215, 218, 220,
             223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
         ];
-        for Pixel(coord, color) in item_pixels {
-            let row = (coord[1] % 16) as usize;
-            let collumn = coord[0] as usize;
-            let mut pixel_data = [0; 8];
-            let r = GAMMA8[color.r() as usize];
-            let g = GAMMA8[color.g() as usize];
-            let b = GAMMA8[color.b() as usize];
-            for i in 0..8 {
-                pixel_data[i] = ((r & (1 << i)) != 0) as u8
-                    | ((((g & (1 << i)) != 0) as u8) << 1)
-                    | ((((b & (1 << i)) != 0) as u8) << 2);
-            }
-            let (bitmask, bitshift) = if coord[1] < 16 {
-                (0b111000, 0)
-            } else {
-                (0b111, 3)
-            };
-            for i in 0..8 {
-                unsafe {
-                    let mut byte = (*self.data)[row][i][collumn * 2];
-                    // Preserve upper bits
-                    byte = (byte & bitmask) | pixel_data[i] << bitshift;
-                    (*self.data)[row][i][collumn * 2] = byte;
-                    (*self.data)[row][i][(collumn * 2) + 1] = byte | 0b100_0000;
-                }
+        let Pixel(coord, color) = pixel;
+        let row = (coord[1] % 16) as usize;
+        let collumn = coord[0] as usize;
+        let mut pixel_data = [0; 8];
+        let r = GAMMA8[color.r() as usize];
+        let g = GAMMA8[color.g() as usize];
+        let b = GAMMA8[color.b() as usize];
+        for i in 0..8 {
+            pixel_data[i] = ((r & (1 << i)) != 0) as u8
+                | ((((g & (1 << i)) != 0) as u8) << 1)
+                | ((((b & (1 << i)) != 0) as u8) << 2);
+        }
+        let (bitmask, bitshift) = if coord[1] < 16 {
+            (0b111000, 0)
+        } else {
+            (0b111, 3)
+        };
+        for i in 0..8 {
+            unsafe {
+                let mut byte = (*self.data)[row][i][collumn * 2];
+                // Preserve upper bits
+                byte = (byte & bitmask) | pixel_data[i] << bitshift;
+                (*self.data)[row][i][collumn * 2] = byte;
+                (*self.data)[row][i][(collumn * 2) + 1] = byte | 0b100_0000;
             }
         }
+    }
+
+    fn size(&self) -> Size {
+        Size::new(64, 32)
     }
 }
