@@ -8,7 +8,7 @@ use hal::prelude::*;
 use hal::stm32::TIM1;
 
 // Has to be higher than 128, so all the bits can be represented
-const TIMER_PERIOD: u16 = 300;
+const TIMER_PERIOD: u16 = 129;
 pub struct Hub75Dma<A, B, C, D, LATCH> {
     row_pins: (A, B, C, D),
     latch: LATCH,
@@ -54,16 +54,19 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
         tim1.cr1.write(|w| w.opm().set_bit());
         tim1.cr2.write(|w| w);
         // Enable update interrupt
-        tim1.dier.write(|w| w.uie().set_bit());
+        tim1.dier.write(|w| w.cc1ie().set_bit());
         // Normal pwm mode
         tim1.ccmr2_output_mut().write(|w| w.oc3m().bits(6));
         // Set the prescaler so that the timer is done when a row is shifted out
-        tim1.psc.write(|w| w.psc().bits(2));
+        tim1.psc.write(|w| w.psc().bits(8));
         // Need this so ARR is reached in the first iteration
         tim1.cnt.write(|w| w.cnt().bits(0));
-        // We adjust the low period via ccr1, since the output is low between ccr & arr
+        // We adjust the low period via ccr3, since the output is low between ccr & arr
         tim1.arr.write(|w| w.arr().bits(TIMER_PERIOD));
-
+        // Generate a timer interrupt after this time
+        // Experimentally determined, so that the output can still be active
+        // while shifting new data
+        tim1.ccr1.write(|w| w.ccr1().bits(60));
         let mut tmp = Self {
             row_pins: (pins.6, pins.7, pins.8, pins.9),
             latch: pins.11,
