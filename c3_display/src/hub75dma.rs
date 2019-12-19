@@ -62,7 +62,7 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
         // Normal pwm mode
         tim1.ccmr2_output_mut().write(|w| w.oc3m().bits(6));
         // Set the prescaler so that the timer is done when a row is shifted out
-        tim1.psc.write(|w| w.psc().bits(8));
+        tim1.psc.write(|w| w.psc().bits(17));
         // Need this so ARR is reached in the first iteration
         tim1.cnt.write(|w| w.cnt().bits(0));
         // We adjust the low period via ccr3, since the output is low between ccr & arr
@@ -70,7 +70,7 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
         // Generate a timer interrupt after this time
         // Experimentally determined, so that the output can still be active
         // while shifting new data
-        tim1.ccr1.write(|w| w.ccr1().bits(60));
+        tim1.ccr1.write(|w| w.ccr1().bits(64));
         let data_output = &*(data as *const _);
         let display = Self {
             row_pins: (pins.6, pins.7, pins.8, pins.9),
