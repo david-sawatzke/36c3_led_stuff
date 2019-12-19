@@ -11,7 +11,7 @@ use hal::gpio::{gpioa::*, gpiob::*};
 use hal::prelude::*;
 use hal::rcc::{self, PllConfig};
 
-use c3_display::hub75dma::Hub75Dma;
+use c3_display::hub75dma::{Hub75Dma, Hub75DmaWrite};
 use cortex_m::peripheral::SYST;
 use cortex_m_semihosting::dbg;
 use embedded_graphics::prelude::*;
@@ -29,6 +29,7 @@ const APP: () = {
             PB11<Output<PushPull>>,
             PB12<Output<PushPull>>,
         >,
+        display_write: Hub75DmaWrite,
         delay: Delay<SYST>,
     }
 
@@ -73,19 +74,23 @@ const APP: () = {
         let pwm = p.TIM1.pwm(10.khz(), &mut rcc);
         let oe_pulse = pwm.bind_pin(oe);
 
-        let display = unsafe {
+        let (display, display_write) = unsafe {
             Hub75Dma::new(
                 (r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat),
                 &mut BUFFER,
                 oe_pulse,
             )
         };
-        init::LateResources { delay, display }
+        init::LateResources {
+            delay,
+            display,
+            display_write,
+        }
     }
 
-    #[idle(resources = [delay, display])]
+    #[idle(resources = [delay, display_write])]
     #[allow(unused_imports)]
-    fn idle(mut c: idle::Context) -> ! {
+    fn idle(c: idle::Context) -> ! {
         use embedded_graphics::fonts::{Font12x16, Font6x8};
         use embedded_graphics::image::ImageTga;
         use embedded_graphics::pixelcolor::Rgb565;
@@ -111,6 +116,10 @@ const APP: () = {
             ImageTga::new(include_bytes!("../../../visuals/midnight_font_preset.tga")).unwrap()
             // ImageBmp::new(include_bytes!("../../../visuals/ferris-flat-happy-small.bmp")).unwrap()
         };
+        let image_ferris = ImageTga::new(include_bytes!(
+            "../../../visuals/ferris-flat-happy-small.tga"
+        ))
+        .unwrap();
         // let imagetmp = ImageBmp::new(include_bytes!(
         //     "../../../visuals/ferris-flat-happy-small.bmp"
         // ))
@@ -133,13 +142,13 @@ const APP: () = {
         // );
         // counter += 1;
         // c.resources.display.draw(&imagetmp);
-        c.resources.display.lock(|display| {
-            image.draw(display);
-            // c.resources.display.clear();
-        });
-
+        image.draw(c.resources.display_write);
+        // c.resources.display.clear();
         loop {
-            continue;
+            image.draw(c.resources.display_write);
+            c.resources.delay.delay_ms(1000u16);
+            image_ferris.draw(c.resources.display_write);
+            c.resources.delay.delay_ms(1000u16);
             // c.resources.display.clear();
         }
     }

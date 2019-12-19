@@ -15,8 +15,12 @@ pub struct Hub75Dma<A, B, C, D, LATCH> {
     _oe_pulse: hal::timer::pwm::PwmPin<TIM1, hal::timer::Channel3>,
     output_port: *mut u8,
     //                     bits
-    data: &'static mut [[[u8; 128]; 8]; 16],
+    data: &'static [[[u8; 128]; 8]; 16],
     o_count: u8,
+}
+
+pub struct Hub75DmaWrite {
+    data: &'static mut [[[u8; 128]; 8]; 16],
 }
 
 unsafe impl<A, B, C, D, LATCH> Send for Hub75Dma<A, B, C, D, LATCH> {}
@@ -43,7 +47,7 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
         ),
         data: &'static mut [[[u8; 128]; 8]; 16],
         mut oe_pulse: hal::timer::pwm::PwmPin<TIM1, hal::timer::Channel3>,
-    ) -> Self {
+    ) -> (Self, Hub75DmaWrite) {
         // Get pointer
         let output_port = core::mem::transmute(&((*hal::stm32::GPIOB::ptr()).odr) as *const _);
         assert_eq!(output_port as usize, 0x5000_0414);
@@ -67,19 +71,21 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
         // Experimentally determined, so that the output can still be active
         // while shifting new data
         tim1.ccr1.write(|w| w.ccr1().bits(60));
-        let mut tmp = Self {
+        let data_output = &*(data as *const _);
+        let display = Self {
             row_pins: (pins.6, pins.7, pins.8, pins.9),
             latch: pins.11,
             output_port,
-            data,
+            data: data_output,
             _oe_pulse: oe_pulse,
             o_count: 0,
         };
         // To generate a clear image
-        tmp.clear();
+        let mut write = Hub75DmaWrite { data };
+        write.clear();
         // Trigger the timer
         tim1.egr.write(|w| w.cc1g().set_bit());
-        tmp
+        (display, write)
     }
 
     pub fn output(&mut self) {
@@ -131,7 +137,9 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
             row_pins.3.set_low().ok();
         }
     }
+}
 
+impl Hub75DmaWrite {
     pub fn clear(&mut self) {
         for row in self.data.iter_mut() {
             for bit in row.iter_mut() {
@@ -150,9 +158,7 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
 use embedded_graphics::pixelcolor::RgbColor;
 use embedded_graphics::{drawable::Pixel, geometry::Size, pixelcolor::Rgb888, DrawTarget};
 
-impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin> DrawTarget<Rgb888>
-    for Hub75Dma<A, B, C, D, LATCH>
-{
+impl DrawTarget<Rgb888> for Hub75DmaWrite {
     fn draw_pixel(&mut self, pixel: Pixel<Rgb888>) {
         // This table remaps linear input values
         // (the numbers we’d like to use; e.g. 127 = half brightness)
