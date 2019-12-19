@@ -15,7 +15,7 @@ pub struct Hub75Dma<A, B, C, D, LATCH> {
     _oe_pulse: hal::timer::pwm::PwmPin<TIM1, hal::timer::Channel3>,
     output_port: *mut u8,
     //                     bits
-    data: *mut [[[u8; 128]; 8]; 16],
+    data: &'static mut [[[u8; 128]; 8]; 16],
     o_count: u8,
 }
 
@@ -41,7 +41,7 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
             PB6<Output<PushPull>>,
             LATCH,
         ),
-        data: *mut [[[u8; 128]; 8]; 16],
+        data: &'static mut [[[u8; 128]; 8]; 16],
         mut oe_pulse: hal::timer::pwm::PwmPin<TIM1, hal::timer::Channel3>,
     ) -> Self {
         // Get pointer
@@ -87,8 +87,8 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
         let bit = (self.o_count % 8) as usize;
         self.o_count = self.o_count.wrapping_add(1);
         // Shift the data out
-        for port_data in unsafe { (*self.data)[row][bit].iter() } {
-            unsafe { *self.output_port = *port_data };
+        for port_data in self.data[row][bit].iter() {
+            unsafe { core::ptr::write_volatile(self.output_port, *port_data) };
         }
         let tim1: &mut hal::stm32::tim1::RegisterBlock = unsafe { &mut *(TIM1::ptr() as *mut _) };
         // Check that the timer isn't still running
@@ -133,7 +133,7 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
     }
 
     pub fn clear(&mut self) {
-        for row in unsafe { &mut *self.data }.iter_mut() {
+        for row in self.data.iter_mut() {
             for bit in row.iter_mut() {
                 for (byte, byte_data) in bit.iter_mut().enumerate() {
                     *byte_data = if byte % 2 == 0 {
@@ -191,13 +191,11 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin> D
             (0b111, 3)
         };
         for i in 0..8 {
-            unsafe {
-                let mut byte = (*self.data)[row][i][collumn * 2];
-                // Preserve upper bits
-                byte = (byte & bitmask) | pixel_data[i] << bitshift;
-                (*self.data)[row][i][collumn * 2] = byte;
-                (*self.data)[row][i][(collumn * 2) + 1] = byte | 0b100_0000;
-            }
+            let mut byte = (*self.data)[row][i][collumn * 2];
+            // Preserve upper bits
+            byte = (byte & bitmask) | pixel_data[i] << bitshift;
+            self.data[row][i][collumn * 2] = byte;
+            self.data[row][i][(collumn * 2) + 1] = byte | 0b100_0000;
         }
     }
 

@@ -76,7 +76,7 @@ const APP: () = {
         let display = unsafe {
             Hub75Dma::new(
                 (r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat),
-                &mut BUFFER as *mut _,
+                &mut BUFFER,
                 oe_pulse,
             )
         };
