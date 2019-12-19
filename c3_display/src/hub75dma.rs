@@ -77,6 +77,8 @@ impl<A: OutputPin, B: OutputPin, C: OutputPin, D: OutputPin, LATCH: OutputPin>
         };
         // To generate a clear image
         tmp.clear();
+        // Trigger the timer
+        tim1.egr.write(|w| w.cc1g().set_bit());
         tmp
     }
 

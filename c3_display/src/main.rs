@@ -136,7 +136,6 @@ const APP: () = {
         c.resources.display.lock(|display| {
             image.draw(display);
             // c.resources.display.clear();
-            display.output();
         });
 
         loop {
