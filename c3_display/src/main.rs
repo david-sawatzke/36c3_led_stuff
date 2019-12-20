@@ -11,6 +11,7 @@ use hal::gpio::{gpioa::*, gpiob::*};
 use hal::prelude::*;
 use hal::rcc::{self, PllConfig};
 
+use c3_display::brightness::BrightnessAdjustment;
 use c3_display::hub75dma::{Hub75Dma, Hub75DmaWrite};
 use cortex_m::peripheral::SYST;
 use cortex_m_semihosting::dbg;
