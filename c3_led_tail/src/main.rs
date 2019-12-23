@@ -2,7 +2,7 @@
 #![no_std]
 
 #[allow(unused)]
-use panic_halt;
+use panic_semihosting;
 
 use stm32f0xx_hal as hal;
 use ws2812_spi as ws2812;
@@ -24,6 +24,7 @@ const APP: () = {
     struct Resources {
         ws: ws2812::Ws2812<
             Spi<hal::stm32::SPI1, PA5<Alternate<AF0>>, PA6<Alternate<AF0>>, PA7<Alternate<AF0>>>,
+            ws2812::devices::Sk6812w,
         >,
         delay: hal::delay::Delay,
     }
@@ -54,7 +55,7 @@ const APP: () = {
         );
 
         //let mut syscon = p.SYS.configure().freeze();
-        let ws = ws2812::Ws2812::new(spi);
+        let ws = ws2812::Ws2812::new_sk6812w(spi);
         init::LateResources { ws, delay }
     }
 
@@ -79,7 +80,7 @@ const APP: () = {
                 g: 80,
                 b: 0,
             },
-            // 36c3 gree
+            // 36c3 green
             RGB8 {
                 r: 0,
                 g: 187,
@@ -102,8 +103,15 @@ const APP: () = {
             elements.step();
             c.resources
                 .ws
-                .write(smart_leds::gamma(elements.iter()))
-                .unwrap();
+                .write(
+                    smart_leds::gamma(elements.iter()).map(|e| smart_leds::RGBW {
+                        r: e.r,
+                        g: e.g,
+                        b: e.b,
+                        a: smart_leds::White(0),
+                    }),
+                )
+                .expect("Write");
             c.resources.delay.delay_ms(50 as u16);
         }
     }
