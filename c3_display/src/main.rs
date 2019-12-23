@@ -127,11 +127,11 @@ const APP: () = {
         // };
         let images = [
             ImageTga::new(include_bytes!(
-                "../../../visuals/ferris-flat-happy-small.tga"
+                "../../resources/ferris-flat-happy-small.tga"
             ))
             .unwrap(),
-            ImageTga::new(include_bytes!("../../../visuals/ewg_small.tga")).unwrap(),
-            ImageTga::new(include_bytes!("../../../visuals/36c3_white_small.tga")).unwrap(),
+            ImageTga::new(include_bytes!("../../resources/ewg_small.tga")).unwrap(),
+            ImageTga::new(include_bytes!("../../resources/36c3_white_small.tga")).unwrap(),
         ];
         // c.resources.display.draw(image.into_iter());
 
