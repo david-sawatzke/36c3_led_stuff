@@ -125,14 +125,14 @@ const APP: () = {
         //     ImageTga::new(include_bytes!("../../../visuals/midnight_font_preset.tga")).unwrap()
         //     // ImageBmp::new(include_bytes!("../../../visuals/ferris-flat-happy-small.bmp")).unwrap()
         // };
-        let image_ferris = ImageTga::new(include_bytes!(
-            "../../../visuals/ferris-flat-happy-small.tga"
-        ))
-        .unwrap();
-        let image_ewg = ImageTga::new(include_bytes!("../../../visuals/ewg_small.tga")).unwrap();
-        let image_36c3 =
-            ImageTga::new(include_bytes!("../../../visuals/36c3_white_small.tga")).unwrap();
-
+        let images = [
+            ImageTga::new(include_bytes!(
+                "../../../visuals/ferris-flat-happy-small.tga"
+            ))
+            .unwrap(),
+            ImageTga::new(include_bytes!("../../../visuals/ewg_small.tga")).unwrap(),
+            ImageTga::new(include_bytes!("../../../visuals/36c3_white_small.tga")).unwrap(),
+        ];
         // c.resources.display.draw(image.into_iter());
 
         // let circle = Circle::new(Coord::new(40, 15), 8).fill(Some(Rgb565(0xF000u16)));
@@ -155,48 +155,30 @@ const APP: () = {
         loop {
             if let Ok(image_num) = c.resources.serial.read() {
                 match image_num {
-                    b'0' => c.resources.display_write.clear(),
-                    b'1' => {
-                        c.resources.display_write.clear();
-                        image_ewg
-                            .translate(Point::new(16, 0))
-                            .draw(c.resources.display_write);
-                    }
-                    b'2' => image_36c3.draw(c.resources.display_write),
+                    b'3' => c.resources.display_write.clear(),
 
-                    b'3' => {
-                        let mut dimm_disp = BrightnessAdjustment {
-                            display: c.resources.display_write,
-                            brightness: 128,
-                        };
-                        image_36c3.draw(&mut dimm_disp);
-                    }
-                    b'4' => {
-                        let mut dimm_disp = BrightnessAdjustment {
-                            display: c.resources.display_write,
-                            brightness: 64,
-                        };
-                        image_36c3.draw(&mut dimm_disp);
-                    }
-                    b'5' => image_ferris.draw(c.resources.display_write),
                     b'6' => {
                         for i in 0..4 {
                             let mut dimm_disp = BrightnessAdjustment {
                                 display: c.resources.display_write,
                                 brightness: i * 64,
                             };
-                            image_ferris.draw(&mut dimm_disp);
+                            images[0].draw(&mut dimm_disp);
                         }
                         for i in 0..16 {
                             let mut dimm_disp = BrightnessAdjustment {
                                 display: c.resources.display_write,
                                 brightness: 255 - i * 16,
                             };
-                            image_ferris.draw(&mut dimm_disp);
+                            images[0].draw(&mut dimm_disp);
                             c.resources.delay.delay_ms(50u8);
                         }
                     }
-                    _ => (),
+                    i => {
+                        (if i < images.len() as u8 {
+                            images[i as usize].draw(c.resources.display_write);
+                        })
+                    }
                 }
             }
             // image_ewg.draw(c.resources.display_write);

@@ -1,5 +1,5 @@
 use rand::prelude::*;
-use serialport::open;
+use serialport::open_with_settings;
 use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
@@ -16,12 +16,16 @@ struct Opt {
 
 fn main() {
     let opt = Opt::from_args();
-    let mut serial = open(&opt.tty).expect("Open serial port");
+    let mut settings: serialport::SerialPortSettings = Default::default();
+    settings.timeout = Duration::from_millis(10);
+    settings.baud_rate = 9600;
+    let mut serial = open_with_settings(&opt.tty, &settings).expect("Open serial port");
     let mut rng = rand::thread_rng();
     loop {
-        let image = rng.gen_range(0, 5);
+        let image = rng.gen_range(0, 3);
         let delay = rng.gen_range(10, 20);
-        serial.write(&[image]).unwrap();
+        serial.write(&[image]).expect("Writing to serial port");
+        println!("{}", image);
         thread::sleep(Duration::from_millis(50 * delay));
     }
 }
