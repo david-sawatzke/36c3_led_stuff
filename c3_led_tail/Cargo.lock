@@ -48,7 +48,7 @@ dependencies = [
  "panic-halt 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smart-leds 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "stm32f0xx-hal 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws2812-nop-stm32f0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ws2812-spi 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -357,12 +357,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "ws2812-nop-stm32f0"
-version = "0.1.0"
+name = "ws2812-spi"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "cortex-m 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded-hal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "smart-leds-trait 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -411,4 +411,4 @@ dependencies = [
 "checksum vcell 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "876e32dcadfe563a4289e994f7cb391197f362b6315dc45e8ba4aa6f564a4b3c"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 "checksum volatile-register 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0d67cb4616d99b940db1d6bd28844ff97108b498a6ca850e5b6191a532063286"
-"checksum ws2812-nop-stm32f0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "4ac1fc9a86056567f90df1dcd3d2f84348ef95aad1802ef0022b7fb46cc3076b"
+"checksum ws2812-spi 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ce47ae80d2c9a7196062be3203106e466dcdf66c157e336810ede9ccbb006ff7"
