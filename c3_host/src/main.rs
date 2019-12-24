@@ -22,7 +22,7 @@ fn main() {
     let mut serial = open_with_settings(&opt.tty, &settings).expect("Open serial port");
     let mut rng = rand::thread_rng();
     loop {
-        let image = rng.gen_range(0, 3);
+        let mut image = rng.gen_range(0, 5);
         let delay = rng.gen_range(10, 20);
         serial.write(&[image]).expect("Writing to serial port");
         println!("{}", image);

@@ -132,6 +132,8 @@ const APP: () = {
             .unwrap(),
             ImageTga::new(include_bytes!("../../resources/ewg_small.tga")).unwrap(),
             ImageTga::new(include_bytes!("../../resources/36c3_white_small.tga")).unwrap(),
+            ImageTga::new(include_bytes!("../../resources/rust_2am.tga")).unwrap(),
+            ImageTga::new(include_bytes!("../../resources/c3_led_stuff.tga")).unwrap(),
         ];
         // c.resources.display.draw(image.into_iter());
 
