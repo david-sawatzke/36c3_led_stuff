@@ -21,11 +21,20 @@ fn main() {
     settings.baud_rate = 9600;
     let mut serial = open_with_settings(&opt.tty, &settings).expect("Open serial port");
     let mut rng = rand::thread_rng();
+    let mut image = 0;
+    // Choose something out of range
+    let mut prev_image = 5;
     loop {
-        let mut image = rng.gen_range(0, 5);
         let delay = rng.gen_range(10, 20);
+        // "Do-while" loop
+        // TODO Abuse while loops less
+        while {
+            image = rng.gen_range(0, 5);
+            image == prev_image
+        } {}
+        prev_image = image;
         serial.write(&[image]).expect("Writing to serial port");
         println!("{}", image);
-        thread::sleep(Duration::from_millis(50 * delay));
+        thread::sleep(Duration::from_millis(200 * delay));
     }
 }
