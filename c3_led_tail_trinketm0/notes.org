@@ -1,0 +1,9 @@
+* Upload
+1. Convert elf to bin
+   #+BEGIN_SRC sh
+   arm-none-eabi-objcopy ..
+   #+END_SRC
+2. Flash it with bossac
+   #+BEGIN_SRC sh
+   bossac -p=/dev/ttyACM0 -e -w -v -R --offset=0x2000 adafruit-circuitpython-feather_m0_express-3.0.0.bin
+   #+END_SRC
