@@ -9,6 +9,7 @@ use ws2812_spi as ws2812;
 
 use crate::hal::delay::Delay;
 use crate::hal::prelude::*;
+use crate::hal::serial::Serial;
 use crate::hal::spi::Spi;
 use crate::hal::time::Hertz;
 use crate::hal::timers::Timer;
@@ -32,6 +33,7 @@ const APP: () = {
         >,
         delay: hal::delay::Delay,
         timer: Timer<hal::stm32::TIM1>,
+        serial: Serial<hal::stm32::USART2, PA2<Alternate<AF1>>, PA3<Alternate<AF1>>>,
     }
 
     #[init]
@@ -43,12 +45,16 @@ const APP: () = {
         let mut flash = p.FLASH;
         let mut rcc = p.RCC.configure().sysclk(48.mhz()).freeze(&mut flash);
         let gpioa = p.GPIOA.split(&mut rcc);
-        let (sck, miso, mosi) = (
+        let (sck, miso, mosi, tx, rx) = (
+            // SPI
             gpioa.pa5.into_alternate_af0(&cs),
             gpioa.pa6.into_alternate_af0(&cs),
             gpioa.pa7.into_alternate_af0(&cs),
+            // Serial
+            gpioa.pa2.into_alternate_af1(&cs),
+            gpioa.pa3.into_alternate_af1(&cs),
         );
-        // let timer = Timer::tim14(p.TIM14, MegaHertz(3), &mut rcc);
+
         let delay = Delay::new(context.core.SYST, &mut rcc);
 
         let spi = Spi::spi1(
@@ -60,27 +66,39 @@ const APP: () = {
         );
 
         let timer = Timer::tim1(p.TIM1, Hertz(20), &mut rcc);
+        let serial = Serial::usart2(p.USART2, (tx, rx), 9600.bps(), &mut rcc);
 
         let ws = ws2812::Ws2812::new_sk6812w(spi);
-        init::LateResources { ws, delay, timer }
+        init::LateResources {
+            ws,
+            delay,
+            timer,
+            serial,
+        }
     }
 
-    #[idle(resources = [ws, delay, timer])]
+    #[idle(resources = [ws, delay, timer, serial])]
     fn idle(c: idle::Context) -> ! {
         // Matching resources in c3_display
         let colors = [
-            // Embedded wg bright
+            // Ferris
             RGB8 {
-                r: 99,
-                g: 107,
-                b: 201,
+                r: 247,
+                g: 76,
+                b: 0,
             },
-            // Embedded wg
-            // RGB8 {
-            //     r: 47,
-            //     g: 51,
-            //     b: 96,
-            // },
+            // EWG
+            RGB8 {
+                r: 67,
+                g: 82,
+                b: 255,
+            },
+            // 36c3 white
+            RGB8 {
+                r: 208,
+                g: 208,
+                b: 207,
+            },
             // 36c3 orange
             RGB8 {
                 r: 254,
@@ -99,7 +117,9 @@ const APP: () = {
         let mut rand = oorandom::Rand32::new(0);
         // On average add a new color every 15 steps
         let mut steps = rand.rand_range(10..20);
-        loop {
+        // Do something when host isn't active yet
+        // Drops first byte
+        while c.resources.serial.read().is_err() {
             steps -= 1;
             if steps == 0 {
                 steps = rand.rand_range(10..20);
@@ -107,19 +127,29 @@ const APP: () = {
                     .add(colors[rand.rand_range(0..colors.len() as u32) as usize])
                     .unwrap();
             }
-            elements.step();
-            c.resources
-                .ws
-                .write(
-                    smart_leds::gamma(elements.iter()).map(|e| smart_leds::RGBW {
-                        r: e.r,
-                        g: e.g,
-                        b: e.b,
-                        a: smart_leds::White(0),
-                    }),
-                )
-                .expect("Write");
             block!(c.resources.timer.wait()).unwrap();
+        }
+        // Host driven mode
+        loop {
+            if let Ok(byte) = c.resources.serial.read().map(|x| x as usize) {
+                if byte < colors.len() {
+                    elements.add(colors[byte]).unwrap();
+                }
+            }
+            if c.resources.timer.wait().is_ok() {
+                elements.step();
+                c.resources
+                    .ws
+                    .write(
+                        smart_leds::gamma(elements.iter()).map(|e| smart_leds::RGBW {
+                            r: e.r,
+                            g: e.g,
+                            b: e.b,
+                            a: smart_leds::White(0),
+                        }),
+                    )
+                    .expect("Write");
+            }
         }
     }
 };
