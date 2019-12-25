@@ -7,23 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-stm32f0xx-hal = {version = "0.15.2", features = ["rt", "stm32f042"]}
-panic-semihosting = "0.5.3"
-cortex-m = "0.6.1"
-embedded-hal = "0.2.3"
-cortex-m-rtfm = "0.5.1"
-smart-leds = "0.3.0"
-# For sk6812w support
-ws2812-spi = {git = "https://github.com/smart-leds-rs/ws2812-spi-rs", rev = "af9bed2c5c3fe803c7a2de9821bce63c7aed8627"}
-oorandom = "11.1.0"
 # Remove when DoubleEndedIterator for queues & len_usize overflow fix are released
 heapless = {git = "https://github.com/japaric/heapless", rev = "f9689ffdbe718ffd24e9b33dd33443ef52a8d74a"}
-nb = "0.1.2"
-
-[profile.dev]
-debug = true
-
-[profile.release]
-debug = true
-lto = true
-opt-level = "s"
+smart-leds-trait = "0.2.0"
