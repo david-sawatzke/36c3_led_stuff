@@ -4,8 +4,39 @@ use core::iter::{Peekable, Rev};
 use heapless::consts::*;
 use heapless::spsc::{Iter, Queue};
 
-use smart_leds_trait::SmartLedsWrite;
 use smart_leds_trait::RGB8;
+pub const COLORS: [RGB8; 5] = [
+    // Ferris
+    RGB8 {
+        r: 247,
+        g: 76,
+        b: 0,
+    },
+    // EWG
+    RGB8 {
+        r: 67,
+        g: 82,
+        b: 255,
+    },
+    // 36c3 white
+    RGB8 {
+        r: 208,
+        g: 208,
+        b: 207,
+    },
+    // 36c3 orange
+    RGB8 {
+        r: 254,
+        g: 80,
+        b: 0,
+    },
+    // 36c3 green
+    RGB8 {
+        r: 0,
+        g: 187,
+        b: 49,
+    },
+];
 
 struct QueueElement {
     color: RGB8,
@@ -38,6 +69,25 @@ impl Elements {
 
     pub fn add(&mut self, color: RGB8) -> Result<(), ()> {
         let element = QueueElement { color, position: 0 };
+        if self
+            .queue
+            .iter_mut()
+            .next_back()
+            .map(|x| x.position != 0)
+            .unwrap_or(true)
+        {
+            self.queue.enqueue(element).map_err(|_| ())
+        } else {
+            // Too many elements, skip this one
+            Ok(())
+        }
+    }
+
+    pub fn add_predefined(&mut self, num: usize) -> Result<(), ()> {
+        let element = QueueElement {
+            color: COLORS[num],
+            position: 0,
+        };
         if self
             .queue
             .iter_mut()

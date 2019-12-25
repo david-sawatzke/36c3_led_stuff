@@ -15,7 +15,6 @@ use crate::hal::time::Hertz;
 use crate::hal::timers::Timer;
 use nb::block;
 use smart_leds::SmartLedsWrite;
-use smart_leds::RGB8;
 
 use c3_led_tail::Elements;
 
@@ -78,38 +77,6 @@ const APP: () = {
     #[idle(resources = [ws, delay, timer, serial])]
     fn idle(c: idle::Context) -> ! {
         // Matching resources in c3_display
-        let colors = [
-            // Ferris
-            RGB8 {
-                r: 247,
-                g: 76,
-                b: 0,
-            },
-            // EWG
-            RGB8 {
-                r: 67,
-                g: 82,
-                b: 255,
-            },
-            // 36c3 white
-            RGB8 {
-                r: 208,
-                g: 208,
-                b: 207,
-            },
-            // 36c3 orange
-            RGB8 {
-                r: 254,
-                g: 80,
-                b: 0,
-            },
-            // 36c3 green
-            RGB8 {
-                r: 0,
-                g: 187,
-                b: 49,
-            },
-        ];
         let mut elements = Elements::new(400, 15);
         // Chosen by fair dice roll
         let mut rand = oorandom::Rand32::new(0);
@@ -122,7 +89,7 @@ const APP: () = {
             if steps == 0 {
                 steps = rand.rand_range(10..20);
                 elements
-                    .add(colors[rand.rand_range(0..colors.len() as u32) as usize])
+                    .add_predefined(rand.rand_range(0..c3_led_tail::COLORS.len() as u32) as usize)
                     .unwrap();
             }
             block!(c.resources.timer.wait()).unwrap();
@@ -130,8 +97,8 @@ const APP: () = {
         // Host driven mode
         loop {
             if let Ok(byte) = c.resources.serial.read().map(|x| x as usize) {
-                if byte < colors.len() {
-                    elements.add(colors[byte]).unwrap();
+                if byte < c3_led_tail::COLORS.len() {
+                    elements.add_predefined(byte).unwrap();
                 }
             }
             if c.resources.timer.wait().is_ok() {
