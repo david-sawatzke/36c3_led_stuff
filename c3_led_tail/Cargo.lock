@@ -44,6 +44,7 @@ dependencies = [
  "cortex-m-rtfm 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded-hal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapless 0.5.1 (git+https://github.com/japaric/heapless?rev=f9689ffdbe718ffd24e9b33dd33443ef52a8d74a)",
+ "nb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "oorandom 11.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic-semihosting 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "smart-leds 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",

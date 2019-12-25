@@ -18,6 +18,7 @@ ws2812-spi = {git = "https://github.com/smart-leds-rs/ws2812-spi-rs", rev = "af9
 oorandom = "11.1.0"
 # Remove when DoubleEndedIterator for queues & len_usize overflow fix are released
 heapless = {git = "https://github.com/japaric/heapless", rev = "f9689ffdbe718ffd24e9b33dd33443ef52a8d74a"}
+nb = "0.1.2"
 
 [profile.dev]
 debug = true

@@ -10,8 +10,11 @@ use ws2812_spi as ws2812;
 use crate::hal::delay::Delay;
 use crate::hal::prelude::*;
 use crate::hal::spi::Spi;
+use crate::hal::time::Hertz;
+use crate::hal::timers::Timer;
 use heapless::consts::*;
 use heapless::spsc::{Iter, Queue};
+use nb::block;
 use smart_leds::SmartLedsWrite;
 use smart_leds::RGB8;
 
@@ -19,6 +22,7 @@ use core::iter::{Peekable, Rev};
 
 use hal::gpio::gpioa::*;
 use hal::gpio::*;
+
 #[rtfm::app(device = stm32f0xx_hal::stm32, peripherals = true)]
 const APP: () = {
     struct Resources {
@@ -27,6 +31,7 @@ const APP: () = {
             ws2812::devices::Sk6812w,
         >,
         delay: hal::delay::Delay,
+        timer: Timer<hal::stm32::TIM1>,
     }
 
     #[init]
@@ -54,13 +59,15 @@ const APP: () = {
             &mut rcc,
         );
 
-        //let mut syscon = p.SYS.configure().freeze();
+        let timer = Timer::tim1(p.TIM1, Hertz(20), &mut rcc);
+
         let ws = ws2812::Ws2812::new_sk6812w(spi);
-        init::LateResources { ws, delay }
+        init::LateResources { ws, delay, timer }
     }
 
-    #[idle(resources = [ws, delay])]
+    #[idle(resources = [ws, delay, timer])]
     fn idle(c: idle::Context) -> ! {
+        // Matching resources in c3_display
         let colors = [
             // Embedded wg bright
             RGB8 {
@@ -112,7 +119,7 @@ const APP: () = {
                     }),
                 )
                 .expect("Write");
-            c.resources.delay.delay_ms(50 as u16);
+            block!(c.resources.timer.wait()).unwrap();
         }
     }
 };
