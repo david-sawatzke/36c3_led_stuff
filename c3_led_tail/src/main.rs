@@ -112,7 +112,7 @@ const APP: () = {
                 b: 49,
             },
         ];
-        let mut elements = Elements::new(60, 15);
+        let mut elements = Elements::new(400, 15);
         // Chosen by fair dice roll
         let mut rand = oorandom::Rand32::new(0);
         // On average add a new color every 15 steps
@@ -156,18 +156,18 @@ const APP: () = {
 
 struct QueueElement {
     color: RGB8,
-    position: u8,
+    position: u16,
 }
 
 struct Elements {
-    queue: Queue<QueueElement, U16, u8, heapless::spsc::SingleCore>,
-    length: u8,
-    trail_length: u8,
+    queue: Queue<QueueElement, U128, u16, heapless::spsc::SingleCore>,
+    length: u16,
+    trail_length: u16,
 }
 
 impl Elements {
-    fn new(length: u8, trail_length: u8) -> Self {
-        let queue = unsafe { Queue::u8_sc() };
+    fn new(length: u16, trail_length: u16) -> Self {
+        let queue = unsafe { Queue::u16_sc() };
 
         Self {
             queue,
@@ -223,11 +223,11 @@ impl Elements {
 }
 
 struct ElementIter<'a> {
-    iter: Peekable<Rev<Iter<'a, QueueElement, U16, u8, heapless::spsc::SingleCore>>>,
-    pos: u8,
-    trail_length: u8,
-    step: u8,
-    length: u8,
+    iter: Peekable<Rev<Iter<'a, QueueElement, U128, u16, heapless::spsc::SingleCore>>>,
+    pos: u16,
+    trail_length: u16,
+    step: u16,
+    length: u16,
 }
 
 impl<'a> Iterator for ElementIter<'a> {
