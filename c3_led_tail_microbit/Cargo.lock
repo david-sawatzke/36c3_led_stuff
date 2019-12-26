@@ -45,7 +45,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "c3_led_tail_trinketm0"
+name = "c3_led_tail_microbit"
 version = "0.1.0"
 dependencies = [
  "c3_led_tail 0.1.0",
@@ -57,7 +57,7 @@ dependencies = [
  "oorandom 11.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic-semihosting 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "smart-leds 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws2812-spi 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ws2812-spi 0.2.0 (git+https://github.com/smart-leds-rs/ws2812-spi-rs?rev=af9bed2c5c3fe803c7a2de9821bce63c7aed8627)",
 ]
 
 [[package]]
@@ -377,7 +377,7 @@ dependencies = [
 [[package]]
 name = "ws2812-spi"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/smart-leds-rs/ws2812-spi-rs?rev=af9bed2c5c3fe803c7a2de9821bce63c7aed8627#af9bed2c5c3fe803c7a2de9821bce63c7aed8627"
 dependencies = [
  "embedded-hal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "nb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -429,4 +429,4 @@ dependencies = [
 "checksum vcell 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "876e32dcadfe563a4289e994f7cb391197f362b6315dc45e8ba4aa6f564a4b3c"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 "checksum volatile-register 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0d67cb4616d99b940db1d6bd28844ff97108b498a6ca850e5b6191a532063286"
-"checksum ws2812-spi 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ce47ae80d2c9a7196062be3203106e466dcdf66c157e336810ede9ccbb006ff7"
+"checksum ws2812-spi 0.2.0 (git+https://github.com/smart-leds-rs/ws2812-spi-rs?rev=af9bed2c5c3fe803c7a2de9821bce63c7aed8627)" = "<none>"
