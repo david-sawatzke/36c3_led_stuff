@@ -1,9 +1,10 @@
 * Upload
+https://learn.adafruit.com/adafruit-trinket-m0-circuitpython-arduino/uf2-bootloader-details
 1. Convert elf to bin
    #+BEGIN_SRC sh
-   arm-none-eabi-objcopy ..
+    arm-none-eabi-objcopy -O binary target/thumbv6m-none-eabi/release/c3_led_tail_trinketm0 out.bin
    #+END_SRC
 2. Flash it with bossac
    #+BEGIN_SRC sh
-   bossac -p=/dev/ttyACM0 -e -w -v -R --offset=0x2000 adafruit-circuitpython-feather_m0_express-3.0.0.bin
+    bossac -p /dev/ttyACM0 -ewvR out.bin
    #+END_SRC
