@@ -6,8 +6,9 @@ Built out of stuff i borrowed from other people/had lying around.
 Has a display component with a nucle-g071rb & hub75, as well as multiple
 trailing led strips, with:
 - stm32f042 & sk6812w
-- adafruit trinket m0 (atsamd21) with the onboard apa102 led
+- adafruit trinket m0 (atsamd21) with the onboard apa102 led and an apa102 strip
 - microbit (nrf51) & ws2812
+  (Doesn't work, it's a bit too slow currently)
 
 This is coordinated using a simple serial line at 9600 baud, which just sends
 the byte of the current frame (c3_host).
