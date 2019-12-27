@@ -32,7 +32,7 @@ const APP: () = {
         >,
         display_write: Hub75DmaWrite,
         delay: Delay<SYST>,
-        serial: hal::serial::Serial<hal::stm32::USART2>,
+        serial: hal::serial::Serial<hal::stm32::USART1>,
     }
 
     #[init]
@@ -46,12 +46,13 @@ const APP: () = {
 
         let gpioa = p.GPIOA.split(&mut rcc);
         let gpiob = p.GPIOB.split(&mut rcc);
+        let gpioc = p.GPIOC.split(&mut rcc);
 
         use hal::gpio::Speed::VeryHigh;
         let (tx, rx, r1, g1, b1, r2, g2, b2, a, b, c, d, clk, lat, oe) = (
             // Serial pins
-            gpioa.pa2.into_floating_input(),
-            gpioa.pa3.into_floating_input(),
+            gpioc.pc4.into_floating_input(),
+            gpioc.pc5.into_floating_input(),
             // Shift pins
             gpiob.pb0.into_push_pull_output().set_speed(VeryHigh),
             gpiob.pb1.into_push_pull_output().set_speed(VeryHigh),
@@ -77,7 +78,7 @@ const APP: () = {
                 .into_floating_input(),
         );
         let serial_config = hal::serial::Config::default().baudrate(9600.bps());
-        let serial = p.USART2.usart(tx, rx, serial_config, &mut rcc).unwrap();
+        let serial = p.USART1.usart(tx, rx, serial_config, &mut rcc).unwrap();
         // Get pulse output
         let pwm = p.TIM1.pwm(10.khz(), &mut rcc);
         let oe_pulse = pwm.bind_pin(oe);
