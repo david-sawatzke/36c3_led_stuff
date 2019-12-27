@@ -5,9 +5,8 @@
 use panic_semihosting;
 
 use microbit::hal;
-use ws2812_spi as ws2812;
+use ws2812_timer_delay as ws2812;
 
-use hal::delay::Delay;
 use hal::hi_res_timer::TimerFrequency;
 use hal::prelude::*;
 use hal::serial::{Rx, Serial};
@@ -22,8 +21,10 @@ use c3_led_tail::Elements;
 #[rtfm::app(device = microbit, peripherals = true)]
 const APP: () = {
     struct Resources {
-        ws: ws2812::Ws2812<Spi<hal::nrf51::SPI1>>,
-        delay: Delay,
+        ws: ws2812::Ws2812<
+            CountDownTimer<hal::nrf51::TIMER0>,
+            hal::gpio::gpio::PIN21<hal::gpio::Output<hal::gpio::PushPull>>,
+        >,
         timer: CountDownTimer<hal::nrf51::TIMER1>,
         serial: Rx<hal::nrf51::UART0>,
     }
@@ -34,23 +35,21 @@ const APP: () = {
 
         let gpio = p.GPIO.split();
 
-        let delay = Delay::new(p.TIMER0);
-
-        let (rx, tx, sck, mosi, miso) = (
+        let (rx, tx, ws) = (
             // 24 & 25 are internal serial pins
-            gpio.pin19.into_floating_input().into(),
+            gpio.pin0.into_floating_input().into(),
             gpio.pin20.into_push_pull_output().into(),
+            // gpio.pin25.into_floating_input().into(),
+            // gpio.pin24.into_push_pull_output().into(),
             // Spi
-            gpio.pin13.into_push_pull_output().into(),
-            gpio.pin15.into_push_pull_output().into(),
-            gpio.pin14.into_floating_input().into(),
+            gpio.pin21.into_push_pull_output(),
         );
 
-        let spi_pins = spi::Pins { sck, mosi, miso };
-        // Luckily has a frequency of 4 MHz
-        let spi = Spi::new(p.SPI1, spi_pins);
+        let mut timer = CountDownTimer::new(p.TIMER0, TimerFrequency::Freq16MHz);
+        // Runs at 16 MHz, so we divide it by 5 for ~3 MHz
+        timer.start(Hfticks(1));
 
-        let ws = ws2812::Ws2812::new(spi);
+        let ws = ws2812::Ws2812::new(timer, ws);
 
         let mut timer = CountDownTimer::new(p.TIMER1, TimerFrequency::Freq31250Hz);
         // 20 Hertz
@@ -60,15 +59,10 @@ const APP: () = {
             .split()
             .1;
 
-        init::LateResources {
-            delay,
-            timer,
-            serial,
-            ws,
-        }
+        init::LateResources { timer, serial, ws }
     }
 
-    #[idle(resources = [delay, serial, timer, ws])]
+    #[idle(resources = [serial, timer, ws])]
     fn idle(c: idle::Context) -> ! {
         // Matching resources in c3_display
         let mut elements = Elements::new(400, 15);
