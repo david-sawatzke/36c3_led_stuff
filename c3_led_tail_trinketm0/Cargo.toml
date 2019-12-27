@@ -17,6 +17,7 @@ smart-leds = "0.3.0"
 oorandom = "11.1.0"
 nb = "0.1.2"
 apa102-spi = "0.3.2"
+instant-timer = "0.1"
 c3_led_tail = {path = "../c3_led_tail"}
 
 [profile.dev]
